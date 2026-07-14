@@ -21,6 +21,7 @@
 #include "crypto_store.h"
 #include "zxmacros_ledger.h"
 #include "os_io_seproxyhal.h"
+#include "test_rsa_key.h"
 
 #define KEY_SLOT_1 0x00
 #define KEY_SLOT_2 0x01
@@ -364,9 +365,23 @@ zxerr_t crypto_store_init() {
 
 bool crypto_store_init_test() {
 #ifdef APP_TESTING
-    zemu_log_stack("-----");
-    slot_in_use=KEY_SLOT_1;
-    SET_NV(&N_crypto_store[slot_in_use].initialized, uint8_t, true)
+    slot_in_use = KEY_SLOT_1;
+    if (!crypto_store_slot_is_initialized(slot_in_use)) {
+        uint8_t pq[RSA_PRIME_LEN * 2] = {0};
+        for (size_t i = 0; i < sizeof(pq); i++) {
+            const char high = TEST_RSA_PQ_HEX[i * 2];
+            const char low = TEST_RSA_PQ_HEX[i * 2 + 1];
+            const uint8_t high_nibble = high <= '9' ? high - '0' : high - 'a' + 10;
+            const uint8_t low_nibble = low <= '9' ? low - '0' : low - 'a' + 10;
+            pq[i] = (high_nibble << 4) | low_nibble;
+        }
+        MEMCPY_NV((void *)&N_crypto_store[slot_in_use].pq, pq, sizeof(pq));
+        MEMZERO(pq, sizeof(pq));
+        if (crypto_init_keys() != zxerr_ok) {
+            return false;
+        }
+    }
+    device_initialized = true;
     return true;
 #endif
 
@@ -419,4 +434,3 @@ cx_rsa_4096_private_key_t *crypto_store_get_privkey() {
     }
     return (cx_rsa_4096_private_key_t *)&N_crypto_store[slot_in_use].rsa_priv;
 }
-

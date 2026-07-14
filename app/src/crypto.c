@@ -72,10 +72,6 @@ static zxerr_t crypto_sign_with_digest(digest_fn_t get_digest, uint8_t *buffer,
         return zxerr_unknown;
     }
 
-#ifdef APP_TESTING
-    return zxerr_ok;
-#endif
-
     uint8_t sig[RSA_MODULUS_LEN] = {0};
 
     cx_rsa_4096_private_key_t *rsa_privkey = crypto_store_get_privkey();

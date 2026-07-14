@@ -4,12 +4,15 @@ from struct import pack
 from time import sleep, time
 
 import pytest
+from Crypto.Hash import SHA256
+from Crypto.PublicKey import RSA
+from Crypto.Signature import pss
 from ragger.backend import BackendInterface
 from ragger.error import ExceptionRAPDU
-from ragger.navigator import NavInsID, Navigator
 
 CLA = 0x44
 INS_SIGN_DATA_ITEM = 0x03
+INS_GET_SIG = 0x10
 INS_GET_PK = 0x20
 
 TAGS = bytes.fromhex(
@@ -28,10 +31,26 @@ def wait_until_initialized(backend: BackendInterface) -> None:
             if response.status == 0x9000:
                 return
         except ExceptionRAPDU as error:
-            if error.status != 0x6987:
+            if error.status not in (0x6901, 0x6987):
                 raise
         sleep(0.25)
     raise TimeoutError("Arweave key generation did not finish")
+
+
+def initialize_if_needed(backend: BackendInterface) -> None:
+    try:
+        response = backend.exchange(CLA, INS_GET_PK, 0, 0, b"")
+        if response.status == 0x9000:
+            return
+    except ExceptionRAPDU as error:
+        if error.status != 0x6987:
+            raise
+
+    backend.right_click()
+    sleep(1)
+    assert "Initialize" in str(backend.get_current_screen_content())
+    backend.both_click()
+    wait_until_initialized(backend)
 
 
 def get_owner(backend: BackendInterface) -> bytes:
@@ -71,7 +90,7 @@ def initialize_and_add(backend: BackendInterface, payload: bytes) -> bytes:
 
 
 def test_rejects_non_arweave_signature_type(backend: BackendInterface):
-    wait_until_initialized(backend)
+    initialize_if_needed(backend)
     payload = bytearray(data_item(bytes(512)))
     payload[0] = 2
     final_chunk = initialize_and_add(backend, payload)
@@ -80,18 +99,39 @@ def test_rejects_non_arweave_signature_type(backend: BackendInterface):
     assert error.value.status == 0x6984
 
 
-def test_reviews_and_approves_ao_message(
-    backend: BackendInterface, navigator: Navigator, test_name: str
-):
-    wait_until_initialized(backend)
-    final_chunk = initialize_and_add(backend, data_item(get_owner(backend)))
+def test_reviews_and_approves_ao_message(backend: BackendInterface):
+    initialize_if_needed(backend)
+    owner = get_owner(backend)
+    final_chunk = initialize_and_add(backend, data_item(owner))
+    reviewed_text = []
     with backend.exchange_async(CLA, INS_SIGN_DATA_ITEM, 2, 0, final_chunk):
-        navigator.navigate_until_text_and_compare(
-            NavInsID.RIGHT_CLICK,
-            [NavInsID.BOTH_CLICK],
-            "Approve",
-            test_name,
-        )
+        for _ in range(32):
+            screen_text = str(backend.get_current_screen_content())
+            reviewed_text.append(screen_text)
+            if "APPROVE" in screen_text.upper():
+                backend.both_click()
+                break
+            backend.right_click()
+            try:
+                backend.wait_for_screen_change(1)
+            except TimeoutError:
+                sleep(0.2)
+        else:
+            pytest.fail(f"Approve screen was not reached: {reviewed_text}")
+
     assert backend.last_async_response is not None
     assert backend.last_async_response.status == 0x9000
     assert len(backend.last_async_response.data) == 48
+
+    review = " ".join(reviewed_text)
+    for expected in ("ANS-104", "Target", "Data-Protocol", "Action", "Data size"):
+        assert expected in review
+
+    first = backend.exchange(CLA, INS_GET_SIG, 0, 0, b"")
+    second = backend.exchange(CLA, INS_GET_SIG, 0, 1, b"")
+    signature = first.data + second.data
+    assert len(signature) == 512
+
+    key = RSA.construct((int.from_bytes(owner, "big"), 65537))
+    digest = SHA256.new(backend.last_async_response.data)
+    pss.new(key, salt_bytes=32).verify(digest, signature)

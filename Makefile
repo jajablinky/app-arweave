@@ -21,6 +21,47 @@
 TESTS_JS_PACKAGE = "@zondax/ledger-arweave"
 TESTS_JS_DIR = $(CURDIR)/js
 
+LEDGER_BUILDER_IMAGE ?= ghcr.io/ledgerhq/ledger-app-builder/ledger-app-builder-lite:latest
+LEDGER_DEV_TOOLS_IMAGE ?= ghcr.io/ledgerhq/ledger-app-builder/ledger-app-dev-tools:latest
+
+.DEFAULT_GOAL := current_build
+
+.PHONY: current_build current_build_test current_build_test_nanox current_build_nanox \
+	current_ragger current_ragger_nanosp current_ragger_nanox
+current_build:
+	docker run --rm -v "$(CURDIR):/app" -w /app $(LEDGER_BUILDER_IMAGE) \
+		bash -lc 'make -C app clean BOLOS_SDK="$$NANOSP_SDK" && \
+		make -C app -j$$(nproc) BOLOS_SDK="$$NANOSP_SDK"'
+
+current_build_test:
+	docker run --rm -v "$(CURDIR):/app" -w /app $(LEDGER_BUILDER_IMAGE) \
+		bash -lc 'make -C app clean BOLOS_SDK="$$NANOSP_SDK" && \
+		make -C app -j$$(nproc) BOLOS_SDK="$$NANOSP_SDK" APP_TESTING=1'
+
+current_build_test_nanox:
+	docker run --rm -v "$(CURDIR):/app" -w /app $(LEDGER_BUILDER_IMAGE) \
+		bash -lc 'make -C app clean BOLOS_SDK="$$NANOX_SDK" && \
+		make -C app -j$$(nproc) BOLOS_SDK="$$NANOX_SDK" APP_TESTING=1'
+
+current_build_nanox:
+	docker run --rm -v "$(CURDIR):/app" -w /app $(LEDGER_BUILDER_IMAGE) \
+		bash -lc 'make -C app clean BOLOS_SDK="$$NANOX_SDK" && \
+		make -C app -j$$(nproc) BOLOS_SDK="$$NANOX_SDK"'
+
+current_ragger: current_ragger_nanosp current_ragger_nanox
+
+current_ragger_nanosp: current_build_test
+	docker run --rm -v "$(CURDIR):/app" -w /app/app $(LEDGER_DEV_TOOLS_IMAGE) \
+		bash -lc 'python -m venv /tmp/ragger && \
+		/tmp/ragger/bin/pip install --quiet -r ../tests_ragger/requirements.txt && \
+		/tmp/ragger/bin/pytest ../tests_ragger -v --tb=short --device nanosp --backend speculos'
+
+current_ragger_nanox: current_build_test_nanox
+	docker run --rm -v "$(CURDIR):/app" -w /app/app $(LEDGER_DEV_TOOLS_IMAGE) \
+		bash -lc 'python -m venv /tmp/ragger && \
+		/tmp/ragger/bin/pip install --quiet -r ../tests_ragger/requirements.txt && \
+		/tmp/ragger/bin/pytest ../tests_ragger -v --tb=short --device nanox --backend speculos'
+
 ifeq ($(BOLOS_SDK),)
 include $(CURDIR)/deps/ledger-zxlib/dockerized_build.mk
 else

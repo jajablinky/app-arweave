@@ -19,10 +19,11 @@ _Please visit our website at [zondax.ch](https://www.zondax.ch)_
 
 This repository contains:
 
-- Ledger Nano S/X BOLOS app
+- Ledger Nano S Plus/X BOLOS app
 - Specs / Documentation
 - C++ unit tests
-- Zemu tests
+- Ragger/Speculos tests
+- Legacy Zemu tests
 
 ## ATTENTION
 
@@ -69,16 +70,8 @@ then run:
   libssl-dev libgmp-dev autoconf libtool
    ```
 
-- Install `node > v14.0`. We typically recommend using `n` for node version management. (This is used to run emulation tests)
-
-- Install python 3
-
-- Install other dependencies running:
-
-  - `make deps`
-
-- This project requires Ledger firmware 1.6
-  - The current repository keeps track of Ledger's SDK but it is possible to override it by changing the git submodule.
+- Install Python 3 for host-side tests.
+- Install Node.js when running the legacy JavaScript/Zemu tests.
 
 _Warning_: Some IDEs may not use the same python interpreter or virtual enviroment as the one you used when running `pip`.
 If you see conan is not found, check that you installed the package in the same interpreter as the one that launches `cmake`.
@@ -87,12 +80,18 @@ If you see conan is not found, check that you installed the package in the same 
 
 > We like clion or vscode, however, he we describe reproducible command line steps that can be used anywhere
 
-- Building the app itself
+- Build the Nano S Plus app against the current Ledger C SDK:
 
-  If you installed all dependencies (as described above), just run:
-
-  ```bash
+  ```sh
   make
+  # Equivalent explicit target:
+  make current_build
+  ```
+
+- Build the Nano X app:
+
+  ```sh
+  make current_build_nanox
   ```
 
 ## Running tests
@@ -105,13 +104,13 @@ If you see conan is not found, check that you installed the package in the same 
   make cpp_test
   ```
 
-- Running device emulation+integration tests!!
+- Run the current Ragger/Speculos integration tests:
 
-   ```bash
-    Use Zemu! Explained below!
-    ```
+  ```sh
+  make current_ragger
+  ```
 
-## How to test with Zemu?
+## Legacy Zemu tests
 
 > What is Zemu?? Great you asked!!
 > As part of this project, we are making public a beta version of our internal testing+emulation framework for Ledger apps.
@@ -120,7 +119,8 @@ If you see conan is not found, check that you installed the package in the same 
 >
 > Repo here: https://github.com/Zondax/zemu
 
-Let's go! First install everything:
+The inherited Zondax suite remains available for regression work. First install
+its dependencies:
 > At this moment, if you change the app you will need to run `make` before running the test again.
 
 ```bash
