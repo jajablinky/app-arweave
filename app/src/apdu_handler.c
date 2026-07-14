@@ -1,6 +1,7 @@
 /*******************************************************************************
 *   (c) 2018, 2019 Zondax GmbH
 *   (c) 2016 Ledger
+*   Modifications (c) 2026 Forward Research
 *
 *  Licensed under the Apache License, Version 2.0 (the "License");
 *  you may not use this file except in compliance with the License.
@@ -189,6 +190,23 @@ __Z_INLINE void handleSign(volatile uint32_t *flags, volatile uint32_t *tx, uint
     *flags |= IO_ASYNCH_REPLY;
 }
 
+__Z_INLINE void handleSignDataItem(volatile uint32_t *flags, volatile uint32_t *tx, uint32_t rx) {
+    if (!process_chunk(tx, rx)) THROW(APDU_CODE_OK);
+
+    const char *error_msg = dataitem_tx_parse();
+    if (error_msg != NULL) {
+        int error_msg_length = strlen(error_msg);
+        MEMCPY(G_io_apdu_buffer, error_msg, error_msg_length);
+        *tx += error_msg_length;
+        THROW(APDU_CODE_DATA_INVALID);
+    }
+
+    CHECK_APP_CANARY()
+    view_review_init(dataitem_tx_getItem, dataitem_tx_getNumItems, app_sign_dataitem);
+    view_review_show(REVIEW_TXN);
+    *flags |= IO_ASYNCH_REPLY;
+}
+
 void handleApdu(volatile uint32_t *flags, volatile uint32_t *tx, uint32_t rx) {
     uint16_t sw = 0;
 
@@ -224,6 +242,12 @@ void handleApdu(volatile uint32_t *flags, volatile uint32_t *tx, uint32_t rx) {
                 case INS_SIGN: {
                     CHECK_PIN_VALIDATED()
                     handleSign(flags, tx, rx);
+                    break;
+                }
+
+                case INS_SIGN_DATA_ITEM: {
+                    CHECK_PIN_VALIDATED()
+                    handleSignDataItem(flags, tx, rx);
                     break;
                 }
 

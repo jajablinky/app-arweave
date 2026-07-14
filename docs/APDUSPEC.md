@@ -1,5 +1,7 @@
 # Arweave App
 
+The experimental ANS-104 command is specified in [ANS104.md](ANS104.md).
+
 ## General structure
 
 The general structure of commands and responses is as follows:

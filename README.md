@@ -1,5 +1,9 @@
 # Ledger Arweave app
 
+> Experimental ANS-104 Data Item work is documented in
+> [docs/ANS104.md](docs/ANS104.md). Use development builds only on a dedicated
+> Ledger initialized with a test seed.
+
 ![stability-wip](https://img.shields.io/badge/stability-work_in_progress-lightgrey.svg)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![GithubActions](https://github.com/zondax/ledger-arweave/actions/workflows/main.yml/badge.svg)](https://github.com/Zondax/ledger-arweave/blob/main/.github/workflows/main.yaml)

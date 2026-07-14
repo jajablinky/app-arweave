@@ -1,5 +1,6 @@
 /*******************************************************************************
 *  (c) 2018-2021 Zondax GmbH
+*  Modifications (c) 2026 Forward Research
 *
 *  Licensed under the Apache License, Version 2.0 (the "License");
 *  you may not use this file except in compliance with the License.
@@ -52,6 +53,7 @@ typedef enum {
 
 #define INS_GET_SIG                     0x10
 #define INS_GET_PK                      0x20
+#define INS_SIGN_DATA_ITEM              0x03
 
 #ifdef __cplusplus
 }
