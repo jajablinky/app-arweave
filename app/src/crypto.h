@@ -34,6 +34,7 @@ zxerr_t crypto_getpubkey_part(uint8_t *buffer, uint16_t bufferLen, uint8_t index
 
 zxerr_t crypto_sign(uint8_t *signature, uint16_t signatureMaxlen, uint16_t *sigSize);
 zxerr_t crypto_sign_dataitem(uint8_t *signature, uint16_t signatureMaxlen, uint16_t *sigSize);
+zxerr_t crypto_sign_httpsig(uint8_t *signature, uint16_t signatureMaxlen, uint16_t *sigSize);
 
 #ifdef __cplusplus
 }

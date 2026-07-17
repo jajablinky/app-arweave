@@ -1,6 +1,7 @@
 # Modifications copyright 2026 Forward Research. Apache-2.0.
 
 from struct import pack
+from hashlib import sha384
 from time import sleep, time
 
 import pytest
@@ -79,6 +80,32 @@ def data_item(owner: bytes) -> bytes:
     )
 
 
+def deep_hash(value):
+    if isinstance(value, bytes):
+        tag = sha384(f"blob{len(value)}".encode()).digest()
+        return sha384(tag + sha384(value).digest()).digest()
+
+    accumulator = sha384(f"list{len(value)}".encode()).digest()
+    for child in value:
+        accumulator = sha384(accumulator + deep_hash(child)).digest()
+    return accumulator
+
+
+def expected_digest(owner: bytes) -> bytes:
+    return deep_hash(
+        [
+            b"dataitem",
+            b"1",
+            b"1",
+            owner,
+            bytes([0x22]) * 32,
+            b"",
+            TAGS,
+            b"hello ao",
+        ]
+    )
+
+
 def initialize_and_add(backend: BackendInterface, payload: bytes) -> bytes:
     response = backend.exchange(CLA, INS_SIGN_DATA_ITEM, 0, 0, b"")
     assert response.status == 0x9000
@@ -122,6 +149,7 @@ def test_reviews_and_approves_ao_message(backend: BackendInterface):
     assert backend.last_async_response is not None
     assert backend.last_async_response.status == 0x9000
     assert len(backend.last_async_response.data) == 48
+    assert backend.last_async_response.data == expected_digest(owner)
 
     review = " ".join(reviewed_text)
     for expected in ("ANS-104", "Target", "Data-Protocol", "Action", "Data size"):
@@ -135,3 +163,29 @@ def test_reviews_and_approves_ao_message(backend: BackendInterface):
     key = RSA.construct((int.from_bytes(owner, "big"), 65537))
     digest = SHA256.new(backend.last_async_response.data)
     pss.new(key, salt_bytes=32).verify(digest, signature)
+
+
+def test_reviews_and_rejects_ao_message(backend: BackendInterface):
+    initialize_if_needed(backend)
+    owner = get_owner(backend)
+    final_chunk = initialize_and_add(backend, data_item(owner))
+    reviewed_text = []
+
+    with pytest.raises(ExceptionRAPDU) as error:
+        with backend.exchange_async(CLA, INS_SIGN_DATA_ITEM, 2, 0, final_chunk):
+            for _ in range(32):
+                screen_text = str(backend.get_current_screen_content())
+                reviewed_text.append(screen_text)
+                if "REJECT" in screen_text.upper():
+                    backend.both_click()
+                    break
+                backend.right_click()
+                try:
+                    backend.wait_for_screen_change(1)
+                except TimeoutError:
+                    sleep(0.2)
+            else:
+                pytest.fail(f"Reject screen was not reached: {reviewed_text}")
+
+    assert error.value.status == 0x6986
+    assert any("REJECT" in screen.upper() for screen in reviewed_text)

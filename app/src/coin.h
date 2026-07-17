@@ -54,6 +54,7 @@ typedef enum {
 #define INS_GET_SIG                     0x10
 #define INS_GET_PK                      0x20
 #define INS_SIGN_DATA_ITEM              0x03
+#define INS_SIGN_HTTP                   0x04
 
 #ifdef __cplusplus
 }

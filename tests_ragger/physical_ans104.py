@@ -2,7 +2,7 @@
 """Exercise ANS-104 signing on a connected development Ledger."""
 
 from base64 import urlsafe_b64encode
-from hashlib import sha256
+from hashlib import sha256, sha384
 from struct import pack
 
 from Crypto.Hash import SHA256
@@ -53,6 +53,33 @@ def make_data_item(owner):
     )
 
 
+def deep_hash(value):
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        blob = bytes(value)
+        tag = sha384(f"blob{len(blob)}".encode()).digest()
+        return sha384(tag + sha384(blob).digest()).digest()
+
+    accumulator = sha384(f"list{len(value)}".encode()).digest()
+    for child in value:
+        accumulator = sha384(accumulator + deep_hash(child)).digest()
+    return accumulator
+
+
+def expected_data_item_digest(owner):
+    return deep_hash(
+        [
+            b"dataitem",
+            b"1",
+            b"1",
+            owner,
+            bytes([0x22]) * 32,
+            b"",
+            TAGS,
+            b"hello ao",
+        ]
+    )
+
+
 def main():
     dongle = getDongle(False)
     try:
@@ -70,9 +97,16 @@ def main():
             exchange(dongle, INS_SIGN_DATA_ITEM, p1=1, data=chunk)
 
         print("Review the ANS-104 message on the Ledger, then approve or reject it.")
-        deep_hash = exchange(dongle, INS_SIGN_DATA_ITEM, p1=2, data=chunks[-1])
-        if len(deep_hash) != 48:
-            raise ValueError(f"Unexpected deep-hash length: {len(deep_hash)}")
+        device_digest = exchange(dongle, INS_SIGN_DATA_ITEM, p1=2, data=chunks[-1])
+        if len(device_digest) != 48:
+            raise ValueError(f"Unexpected deep-hash length: {len(device_digest)}")
+        expected_digest = expected_data_item_digest(owner)
+        if bytes(device_digest) != expected_digest:
+            raise ValueError(
+                "Device returned a non-canonical ANS-104 deep hash:\n"
+                f"  device:   {device_digest.hex()}\n"
+                f"  expected: {expected_digest.hex()}"
+            )
 
         signature = exchange(dongle, INS_GET_SIG, p2=0) + exchange(
             dongle, INS_GET_SIG, p2=1
@@ -81,7 +115,7 @@ def main():
             raise ValueError(f"Unexpected signature length: {len(signature)}")
 
         public_key = RSA.construct((int.from_bytes(owner, "big"), 65537))
-        pss.new(public_key, salt_bytes=32).verify(SHA256.new(deep_hash), signature)
+        pss.new(public_key, salt_bytes=32).verify(SHA256.new(device_digest), signature)
         print("PASS: the physical Ledger signature is valid. Nothing was broadcast.")
     finally:
         dongle.close()

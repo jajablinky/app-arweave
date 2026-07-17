@@ -111,6 +111,7 @@ file(GLOB_RECURSE LIB_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/app/src/crypto_helper.c
         ${CMAKE_CURRENT_SOURCE_DIR}/app/src/parser_impl.c
         ${CMAKE_CURRENT_SOURCE_DIR}/app/src/parser_dataitem.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/app/src/parser_httpsig.c
         )
 
 add_library(app_lib STATIC
@@ -157,6 +158,7 @@ if (ENABLE_FUZZING)
     set(FUZZ_TARGETS
         parser_parse
         dataitem_parse
+        httpsig_parse
         )
 
     foreach(target ${FUZZ_TARGETS})

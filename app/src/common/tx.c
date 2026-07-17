@@ -20,6 +20,7 @@
 #include "buffering.h"
 #include "parser.h"
 #include "parser_dataitem.h"
+#include "parser_httpsig.h"
 #include <string.h>
 #include "zxmacros.h"
 
@@ -47,6 +48,7 @@ storage_t NV_CONST N_appdata_impl __attribute__((aligned(64)));
 
 parser_context_t ctx_parsed_tx;
 parser_context_t ctx_parsed_dataitem;
+parser_context_t ctx_parsed_httpsig;
 
 void tx_initialize()
 {
@@ -115,6 +117,17 @@ const char *dataitem_tx_parse()
     CHECK_APP_CANARY()
     if (err != parser_ok) return parser_getErrorDescription(err);
     return NULL;
+}
+
+const char *httpsig_tx_parse()
+{
+    uint8_t err = httpsig_parse(&ctx_parsed_httpsig,
+                                tx_get_buffer(),
+                                tx_get_buffer_length());
+    if (err != parser_ok) return parser_getErrorDescription(err);
+    err = httpsig_validate(&ctx_parsed_httpsig);
+    CHECK_APP_CANARY()
+    return err == parser_ok ? NULL : parser_getErrorDescription(err);
 }
 
 void tx_parse_reset()
@@ -187,4 +200,24 @@ zxerr_t dataitem_tx_getItem(int8_t displayIdx,
     if (err == parser_no_data || err == parser_display_idx_out_of_range ||
         err == parser_display_page_out_of_range) return zxerr_no_data;
     return err == parser_ok ? zxerr_ok : zxerr_unknown;
+}
+
+zxerr_t httpsig_tx_getNumItems(uint8_t *num_items)
+{
+    return httpsig_getNumItems(&ctx_parsed_httpsig, num_items) == parser_ok
+               ? zxerr_ok : zxerr_no_data;
+}
+
+zxerr_t httpsig_tx_getItem(int8_t displayIdx,
+                           char *outKey, uint16_t outKeyLen,
+                           char *outVal, uint16_t outValLen,
+                           uint8_t pageIdx, uint8_t *pageCount)
+{
+    uint8_t numItems = 0;
+    CHECK_ZXERR(httpsig_tx_getNumItems(&numItems))
+    if (displayIdx < 0 || displayIdx >= numItems) return zxerr_no_data;
+    parser_error_t err = httpsig_getItem(&ctx_parsed_httpsig, displayIdx,
+                                         outKey, outKeyLen, outVal, outValLen,
+                                         pageIdx, pageCount);
+    return err == parser_ok ? zxerr_ok : zxerr_no_data;
 }

@@ -21,6 +21,7 @@
 #include "apdu_codes.h"
 #include "parser.h"
 #include "parser_dataitem.h"
+#include "parser_httpsig.h"
 #include "parser_common.h"
 #include "b64url.h"
 #include "crypto_store.h"
@@ -102,7 +103,33 @@ zxerr_t crypto_sign(uint8_t *buffer, uint16_t signatureMaxlen, uint16_t *sigSize
 }
 
 zxerr_t crypto_sign_dataitem(uint8_t *buffer, uint16_t signatureMaxlen, uint16_t *sigSize) {
-    return crypto_sign_with_digest(dataitem_getDigest, buffer, signatureMaxlen, sigSize);
+    return crypto_sign_with_digest(dataitem_getCachedDigest, buffer, signatureMaxlen, sigSize);
+}
+
+zxerr_t crypto_sign_httpsig(uint8_t *buffer, uint16_t signatureMaxlen, uint16_t *sigSize) {
+    if (!crypto_store_is_initialized()) return zxerr_invalid_crypto_settings;
+    if (signatureMaxlen < HTTPSIG_DIGEST_LEN) return zxerr_buffer_too_small;
+
+    uint8_t digest[HTTPSIG_DIGEST_LEN] = {0};
+    if (httpsig_getDigest(digest, sizeof(digest)) != parser_ok) return zxerr_unknown;
+    uint8_t sig[RSA_MODULUS_LEN] = {0};
+    cx_rsa_4096_private_key_t *rsa_privkey = crypto_store_get_privkey();
+    if (rsa_privkey == NULL) return zxerr_invalid_crypto_settings;
+
+    zxerr_t error = zxerr_unknown;
+    CATCH_CXERROR(cx_rsa_sign_no_throw((const cx_rsa_private_key_t *)rsa_privkey,
+                                      CX_PAD_PKCS1_PSS, CX_SHA512,
+                                      digest, sizeof(digest), sig, sizeof(sig)));
+    error = crypto_store_signature(sig);
+
+catch_cx_error:
+    rsa_privkey = NULL;
+    MEMZERO(sig, sizeof(sig));
+    if (error == zxerr_ok) {
+        MEMCPY(buffer, digest, sizeof(digest));
+        *sigSize = sizeof(digest);
+    }
+    return error;
 }
 
 typedef struct {

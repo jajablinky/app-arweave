@@ -1,6 +1,7 @@
 # Arweave App
 
-The experimental ANS-104 command is specified in [ANS104.md](ANS104.md).
+The experimental AO commands are specified in [ANS104.md](ANS104.md) and
+[HTTPSIG.md](HTTPSIG.md).
 
 ## General structure
 

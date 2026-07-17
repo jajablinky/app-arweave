@@ -44,6 +44,7 @@ typedef struct {
 parser_error_t dataitem_parse(parser_context_t *ctx, const uint8_t *data, size_t data_len);
 parser_error_t dataitem_validate(const parser_context_t *ctx);
 parser_error_t dataitem_getDigest(uint8_t *digest, uint16_t digest_len);
+parser_error_t dataitem_getCachedDigest(uint8_t *digest, uint16_t digest_len);
 parser_error_t dataitem_getNumItems(const parser_context_t *ctx, uint8_t *num_items);
 parser_error_t dataitem_getItem(const parser_context_t *ctx,
                                 uint16_t display_idx,

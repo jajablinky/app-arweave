@@ -26,6 +26,8 @@
 #include "parser_dataitem.h"
 
 parser_dataitem_t parser_dataitem_obj;
+static uint8_t parser_dataitem_digest[SHA384_DIGEST_LEN];
+static bool parser_dataitem_digest_ready = false;
 
 typedef union {
     struct {
@@ -171,9 +173,11 @@ static parser_error_t validate_tags(void) {
 }
 
 parser_error_t dataitem_parse(parser_context_t *ctx, const uint8_t *data, size_t data_len) {
+    MEMZERO(&parser_dataitem_obj, sizeof(parser_dataitem_obj));
+    MEMZERO(parser_dataitem_digest, sizeof(parser_dataitem_digest));
+    parser_dataitem_digest_ready = false;
     if (data == NULL || data_len == 0 || data_len > UINT16_MAX) return parser_no_data;
     CHECK_PARSER_ERR(parser_init(ctx, data, (uint16_t)data_len))
-    MEMZERO(&parser_dataitem_obj, sizeof(parser_dataitem_obj));
 
     CHECK_PARSER_ERR(read_le16(ctx, &parser_dataitem_obj.signature_type))
     if (parser_dataitem_obj.signature_type != DATAITEM_SIGNATURE_TYPE_ARWEAVE) {
@@ -235,13 +239,30 @@ parser_error_t dataitem_validate(const parser_context_t *ctx) {
         uint8_t pages = 0;
         CHECK_PARSER_ERR(dataitem_getItem(ctx, i, key, sizeof(key), value, sizeof(value), 0, &pages))
     }
+    CHECK_PARSER_ERR(dataitem_getDigest(parser_dataitem_digest,
+                                        sizeof(parser_dataitem_digest)))
+    parser_dataitem_digest_ready = true;
     return parser_ok;
 }
 
 static parser_error_t hash_tag(uint8_t out[SHA384_DIGEST_LEN], const char *kind, uint16_t len) {
     uint8_t buffer[32] = {0};
-    snprintf((char *)buffer, sizeof(buffer), "%s%u", kind, len);
-    HASH_OR_RETURN(crypto_sha384(buffer, strlen((char *)buffer), out, SHA384_DIGEST_LEN));
+    const size_t kind_len = strlen(kind);
+    if (kind_len >= sizeof(buffer)) return parser_unexpected_buffer_end;
+
+    MEMCPY(buffer, kind, kind_len);
+    uint8_t digits[5] = {0};
+    uint8_t digits_len = 0;
+    do {
+        digits[digits_len++] = (uint8_t)('0' + (len % 10));
+        len /= 10;
+    } while (len > 0 && digits_len < sizeof(digits));
+
+    if (kind_len + digits_len > sizeof(buffer)) return parser_unexpected_buffer_end;
+    for (uint8_t i = 0; i < digits_len; i++) {
+        buffer[kind_len + i] = digits[digits_len - i - 1];
+    }
+    HASH_OR_RETURN(crypto_sha384(buffer, kind_len + digits_len, out, SHA384_DIGEST_LEN));
     return parser_ok;
 }
 
@@ -277,6 +298,15 @@ parser_error_t dataitem_getDigest(uint8_t *digest, uint16_t digest_len) {
     CHECK_PARSER_ERR(accumulate(&ctx, parser_dataitem_obj.raw_tags.ptr, parser_dataitem_obj.raw_tags.len))
     CHECK_PARSER_ERR(accumulate(&ctx, parser_dataitem_obj.data.ptr, parser_dataitem_obj.data.len))
     MEMCPY(digest, ctx.acc, SHA384_DIGEST_LEN);
+    return parser_ok;
+}
+
+parser_error_t dataitem_getCachedDigest(uint8_t *digest, uint16_t digest_len) {
+    if (!parser_dataitem_digest_ready) return parser_unexpected_error;
+    if (digest == NULL || digest_len < sizeof(parser_dataitem_digest)) {
+        return parser_unexpected_buffer_end;
+    }
+    MEMCPY(digest, parser_dataitem_digest, sizeof(parser_dataitem_digest));
     return parser_ok;
 }
 
