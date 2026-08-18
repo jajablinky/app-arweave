@@ -1,5 +1,6 @@
 #*******************************************************************************
 #*   (c) 2019 Zondax GmbH
+#*   Modifications copyright 2026 Forward Research
 #*
 #*  Licensed under the Apache License, Version 2.0 (the "License");
 #*  you may not use this file except in compliance with the License.

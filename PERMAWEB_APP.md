@@ -8,6 +8,11 @@ The Nano S Plus menu keeps the version, Apache 2.0 license, and quit screens, bu
 `Developed by` screen. Source copyright and license notices remain intact. Its icon keeps the current
 Arweave ring and replaces the inner `a` glyph with a pixel-matched `P`.
 
+Redistributions of the source or installer package must include the repository's unmodified Apache
+2.0 `LICENSE` and its `NOTICE`, which preserves upstream attribution and identifies Forward Research's
+modifications. Attribution is distributed with the software rather than presented as product branding
+on the Ledger screen.
+
 The pinned `ledger-zxlib` dependency owns the menu implementation. After initializing submodules,
 build the complete Nano S Plus loader package with:
 
