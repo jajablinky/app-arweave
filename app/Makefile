@@ -43,7 +43,7 @@ $(info COIN  = [$(COIN)])
 ifeq ($(COIN),ARWEAVE)
 # Main app configuration
 DEFINES += APP_STANDARD
-APPNAME = "Arweave"
+APPNAME = "Permaweb"
 APPPATH = "44'/472'" --path "44'/1'"
 
 else

@@ -18,7 +18,7 @@ fixture and continue to derive the key from the device seed.
 
 Use only a dedicated development device initialized with a test seed. Build and
 load the production app, close Ledger Wallet and any browser WebHID session,
-then leave the initialized Arweave app open.
+then leave the initialized Permaweb app open.
 
 ```sh
 python3 -m venv /tmp/app-arweave-ledgerblue

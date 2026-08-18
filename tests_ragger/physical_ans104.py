@@ -88,7 +88,7 @@ def main():
             raise ValueError(f"Unexpected owner length: {len(owner)}")
 
         address = urlsafe_b64encode(sha256(owner).digest()).rstrip(b"=").decode()
-        print(f"Connected Arweave address: {address}")
+        print(f"Connected Permaweb app address: {address}")
 
         payload = make_data_item(owner)
         exchange(dongle, INS_SIGN_DATA_ITEM)

@@ -43,7 +43,7 @@ typedef enum {
 #define COIN_DEFAULT_DENOM_REPR             "AR "
 #define COIN_SUPPORTED_TX_VERSION           0
 
-#define MENU_MAIN_APP_LINE1                 "Arweave"
+#define MENU_MAIN_APP_LINE1                 "Permaweb"
 #define MENU_MAIN_APP_LINE2                 "Ready"
 #define MENU_MAIN_APP_LINE2_SECRET          "???"
 #define APPVERSION_LINE1                    "Version"

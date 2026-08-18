@@ -35,7 +35,7 @@ def wait_until_initialized(backend: BackendInterface) -> None:
             if error.status not in (0x6901, 0x6987):
                 raise
         sleep(0.25)
-    raise TimeoutError("Arweave key generation did not finish")
+    raise TimeoutError("Permaweb key generation did not finish")
 
 
 def initialize_if_needed(backend: BackendInterface) -> None:

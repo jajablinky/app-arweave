@@ -228,7 +228,7 @@ zxerr_t crypto_init_primes() {
 
     uint8_t pq[RSA_PRIME_LEN * 2] = {0};
 
-    view_message_show("Arweave", "Finding Pseed");
+    view_message_show(MENU_MAIN_APP_LINE1, "Finding Pseed");
     UX_WAIT_DISPLAYED();
 
     volatile zxerr_t err = zxerr_unknown;
@@ -240,7 +240,7 @@ zxerr_t crypto_init_primes() {
             }
             io_seproxyhal_io_heartbeat();
 
-            view_message_show("Arweave", "Finding Qseed");
+            view_message_show(MENU_MAIN_APP_LINE1, "Finding Qseed");
             UX_WAIT_DISPLAYED();
             io_seproxyhal_io_heartbeat();
             if (crypto_derivePrime(pq + RSA_PRIME_LEN, 1) != zxerr_ok) {
@@ -252,7 +252,7 @@ zxerr_t crypto_init_primes() {
             *(pq + RSA_PRIME_LEN) |= 0x80;
 
             // Obtain two prime numbers p, q inplace
-            view_message_show("Arweave", "Finding P");
+            view_message_show(MENU_MAIN_APP_LINE1, "Finding P");
             UX_WAIT_DISPLAYED();
             io_seproxyhal_io_heartbeat();
             if (cx_math_next_prime_no_throw(pq, RSA_PRIME_LEN) != CX_OK) {
@@ -260,7 +260,7 @@ zxerr_t crypto_init_primes() {
             }
             io_seproxyhal_io_heartbeat();
 
-            view_message_show("Arweave", "Finding Q");
+            view_message_show(MENU_MAIN_APP_LINE1, "Finding Q");
             UX_WAIT_DISPLAYED();
             io_seproxyhal_io_heartbeat();
             if (cx_math_next_prime_no_throw(pq + RSA_PRIME_LEN, RSA_PRIME_LEN) != CX_OK) {
@@ -289,7 +289,7 @@ zxerr_t crypto_init_keys() {
     cx_rsa_4096_private_key_t rsa_priv;
     const uint8_t exp_be_buf[] = {0x00, 0x01, 0x00, 0x01};    // default rsa value 65537
 
-    view_message_show("Arweave", "gen pair");
+    view_message_show(MENU_MAIN_APP_LINE1, "gen pair");
     UX_WAIT_DISPLAYED();
 
     zxerr_t error = zxerr_unknown;
@@ -300,7 +300,7 @@ zxerr_t crypto_init_keys() {
                                                (const unsigned char *) &N_crypto_store[slot_in_use].pq));
     error = zxerr_ok;
 
-    view_message_show("Arweave", "store keys");
+    view_message_show(MENU_MAIN_APP_LINE1, "store keys");
     UX_WAIT_DISPLAYED();
     SET_NV((void *)&N_crypto_store[slot_in_use].initialized, uint8_t, true)
     MEMCPY_NV((void *)&N_crypto_store[slot_in_use].rsa_pub, &rsa_pub, sizeof(rsa_pub));
@@ -401,19 +401,19 @@ bool crypto_store_init_test() {
 }
 
 zxerr_t crypto_initialize_slot() {
-    view_message_show("Arweave", "Initializing");
+    view_message_show(MENU_MAIN_APP_LINE1, "Initializing");
     UX_WAIT_DISPLAYED();
 
-    view_message_show("Arweave", "Init seed");
+    view_message_show(MENU_MAIN_APP_LINE1, "Init seed");
     UX_WAIT_DISPLAYED();
     CHECK_ZXERR(crypto_deriveMasterSeed())
 
-    view_message_show("Arweave", "Finding primes");
+    view_message_show(MENU_MAIN_APP_LINE1, "Finding primes");
     UX_WAIT_DISPLAYED();
     zemu_log_stack("init::primes");
     CHECK_ZXERR(crypto_init_primes())
 
-    view_message_show("Arweave", "Finding keys");
+    view_message_show(MENU_MAIN_APP_LINE1, "Finding keys");
     UX_WAIT_DISPLAYED();
     CHECK_ZXERR(crypto_init_keys())
 
