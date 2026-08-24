@@ -24,10 +24,20 @@ TESTS_JS_DIR = $(CURDIR)/js
 
 LEDGER_BUILDER_IMAGE ?= ghcr.io/ledgerhq/ledger-app-builder/ledger-app-builder-lite:latest
 LEDGER_DEV_TOOLS_IMAGE ?= ghcr.io/ledgerhq/ledger-app-builder/ledger-app-dev-tools:latest
-LEDGER_LOADER_IMAGE ?= zondax/ledger-app-builder:ledger-e1420b8a420f5f3d503ce27bbe998831e6047d6c
 GIT_COMMON_DIR := $(shell realpath "$$(git rev-parse --git-common-dir)")
 GIT_COMMON_MOUNT := -v "$(GIT_COMMON_DIR):$(GIT_COMMON_DIR):ro"
-PERMAWEB_PACKAGE := app/output/permaweb-nanos-plus-1.1.0.apdu
+GIT_LFS_PASSTHROUGH_ENV := -e GIT_CONFIG_COUNT=4 \
+	-e GIT_CONFIG_KEY_0=filter.lfs.process -e GIT_CONFIG_VALUE_0= \
+	-e GIT_CONFIG_KEY_1=filter.lfs.clean -e GIT_CONFIG_VALUE_1=cat \
+	-e GIT_CONFIG_KEY_2=filter.lfs.smudge -e GIT_CONFIG_VALUE_2=cat \
+	-e GIT_CONFIG_KEY_3=filter.lfs.required -e GIT_CONFIG_VALUE_3=false
+include app/Makefile.version
+PERMAWEB_VERSION := $(APPVERSION_M).$(APPVERSION_N).$(APPVERSION_P)
+PERMAWEB_PACKAGE := app/output/permaweb-nanos-plus-$(PERMAWEB_VERSION).apdu
+NANOSP_SDK_VERSION := $(shell git -C deps/nanosplus-secure-sdk describe --tags --exact-match --match "v[0-9]*")
+NANOSP_SDK_HASH := $(shell git -C deps/nanosplus-secure-sdk rev-parse HEAD)
+NANOSP_BUILD_ARGS := BOLOS_SDK=/app/deps/nanosplus-secure-sdk TARGET=nanos2 \
+	SDK_VERSION=$(NANOSP_SDK_VERSION) SDK_HASH=$(NANOSP_SDK_HASH)
 
 .DEFAULT_GOAL := current_build
 
@@ -43,25 +53,21 @@ customize:
 		exit 1; \
 	fi
 
-current_package: customize current_build
-	docker run --rm -e SDK_VARNAME=NANOSP_SDK -e TARGET=nanos2 -u $$(id -u):$$(id -g) \
-		-v "$(CURDIR):/app" $(LEDGER_LOADER_IMAGE) \
-		"python3 -m ledgerblue.loadApp --targetId 0x33100004 --apiLevel 26 \
-		--fileName /app/app/bin/app.hex --appName Permaweb --appFlags 0x000 --delete --tlv \
-		--dataSize 22016 --installparamsSize 73 --path 44'/472' --path 44'/1' \
-		--offline /app/$(PERMAWEB_PACKAGE) --offlineText"
+current_package: current_build
+	@mkdir -p $(dir $(PERMAWEB_PACKAGE))
+	cp app/bin/app.apdu $(PERMAWEB_PACKAGE)
 	@shasum -a 256 $(PERMAWEB_PACKAGE)
 	@wc -l $(PERMAWEB_PACKAGE)
 
-current_build:
-	docker run --rm -v "$(CURDIR):/app" $(GIT_COMMON_MOUNT) -w /app $(LEDGER_BUILDER_IMAGE) \
-		bash -lc 'make -C app clean BOLOS_SDK="$$NANOSP_SDK" && \
-		make -C app -j$$(nproc) BOLOS_SDK="$$NANOSP_SDK"'
+current_build: customize
+	docker run --rm $(GIT_LFS_PASSTHROUGH_ENV) -v "$(CURDIR):/app" $(GIT_COMMON_MOUNT) -w /app $(LEDGER_BUILDER_IMAGE) \
+		bash -lc 'make -C app clean $(NANOSP_BUILD_ARGS) && \
+		make -C app -j$$(nproc) $(NANOSP_BUILD_ARGS)'
 
-current_build_test:
-	docker run --rm -v "$(CURDIR):/app" $(GIT_COMMON_MOUNT) -w /app $(LEDGER_BUILDER_IMAGE) \
-		bash -lc 'make -C app clean BOLOS_SDK="$$NANOSP_SDK" && \
-		make -C app -j$$(nproc) BOLOS_SDK="$$NANOSP_SDK" APP_TESTING=1'
+current_build_test: customize
+	docker run --rm $(GIT_LFS_PASSTHROUGH_ENV) -v "$(CURDIR):/app" $(GIT_COMMON_MOUNT) -w /app $(LEDGER_BUILDER_IMAGE) \
+		bash -lc 'make -C app clean $(NANOSP_BUILD_ARGS) && \
+		make -C app -j$$(nproc) $(NANOSP_BUILD_ARGS) APP_TESTING=1'
 
 current_build_test_nanox:
 	docker run --rm -v "$(CURDIR):/app" $(GIT_COMMON_MOUNT) -w /app $(LEDGER_BUILDER_IMAGE) \

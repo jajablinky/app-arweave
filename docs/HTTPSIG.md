@@ -1,6 +1,6 @@
 # Experimental AO HTTP Signature Signing
 
-This feature build reports app version `1.1.0` so it cannot be confused with the official `1.0.25` release while it is being sideloaded and validated.
+This feature build reports app version `1.1.2` so it cannot be confused with the official `1.0.25` release while it is being sideloaded and validated.
 
 This branch adds bounded parsing and RSA-4096 signing for AO mainnet HTTP
 signature bases. It is development software and is not approved for production
