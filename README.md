@@ -1,4 +1,4 @@
-# Permaweb Ledger app
+# Permaweb Ledger App
 
 This repository contains an experimental Permaweb application for Ledger
 devices. It adds AO HTTP signature and ANS-104 Data Item signing to the
