@@ -1,25 +1,52 @@
+diff --git a/app/ui/view_nano.c b/app/ui/view_nano.c
+index db39a85..fdd9aaa 100644
+--- a/app/ui/view_nano.c
++++ b/app/ui/view_nano.c
+@@ -60,2 +60,3 @@ void h_initialize() {
+-    if (viewdata.viewfuncInitialize != NULL) {
+-        viewdata.viewfuncInitialize();
++    if (viewdata.viewfuncInitialize != NULL && viewdata.viewfuncInitialize() != zxerr_ok) {
++        view_initialize_show(0, NULL);
++        return;
+@@ -62,0 +64 @@ void h_initialize() {
++#ifdef APP_TESTING
+@@ -63,0 +66,4 @@ void h_initialize() {
++#else
++    view_review_init(addr_getItem, addr_getNumItems, NULL);
++    view_review_show(REVIEW_UI);
++#endif
 diff --git a/app/ui/view_x.c b/app/ui/view_x.c
-index d81f09d..608bcd1 100644
+index d81f09d..7020a1a 100644
 --- a/app/ui/view_x.c
 +++ b/app/ui/view_x.c
-@@ -81,7 +81,1 @@
+@@ -31,0 +32 @@
++#include "crypto_store.h"
+@@ -79,6 +80,2 @@ UX_STEP_CB_INIT(ux_idle_flow_2_step, bn,  h_expert_update(), h_expert_toggle(),
+-UX_STEP_NOCB(ux_idle_flow_3_step, bn, { APPVERSION_LINE1, APPVERSION_LINE2, });
+-
 -#ifdef APP_SECRET_MODE_ENABLED
 -UX_STEP_CB(ux_idle_flow_4_step, bn, h_secret_click(), { "Developed by:", "Zondax.ch", });
 -#else
 -UX_STEP_NOCB(ux_idle_flow_4_step, bn, { "Developed by:", "Zondax.ch", });
--#endif
--
- UX_STEP_NOCB(ux_idle_flow_5_step, bn, { "License:", "Apache 2.0", });
-@@ -107,3 +101,2 @@ const ux_flow_step_t *const ux_idle_flow [] = {
-   &ux_idle_flow_3_step,
++#ifndef APP_TESTING
++UX_STEP_CB_INIT(ux_wallet_form, bn, snprintf(viewdata.value, sizeof(viewdata.value), "%s", crypto_store_wallet_label()), crypto_store_switch_wallet(), { "Wallet (switch)", viewdata.value, });
+@@ -85,0 +83 @@ UX_STEP_NOCB(ux_idle_flow_4_step, bn, { "Developed by:", "Zondax.ch", });
++UX_STEP_NOCB(ux_idle_flow_3_step, bn, { APPVERSION_LINE1, APPVERSION_LINE2, });
+@@ -99,0 +98,3 @@ const ux_flow_step_t *const ux_idle_flow [] = {
++#ifndef APP_TESTING
++  &ux_wallet_form,
++#endif
+@@ -108 +108,0 @@ const ux_flow_step_t *const ux_idle_flow [] = {
 -  &ux_idle_flow_4_step,
-   &ux_idle_flow_5_step,
-@@ -115,4 +108,2 @@ const ux_flow_step_t *const ux_idle_flow [] = {
- UX_STEP_CB_INIT(ux_menu_init_flow_2_step, bn,  NULL, h_initialize(), { "Click to", "Initialize", });
+@@ -116,2 +115,0 @@ UX_STEP_CB_INIT(ux_menu_init_flow_2_step, bn,  NULL, h_initialize(), { "Click to
 -UX_STEP_NOCB(ux_menu_init_flow_4_step, bn, { "Developed by:", "Zondax.ch", });
 -
- const ux_flow_step_t *const ux_menu_initialize [] = {
-@@ -121,3 +112,2 @@ const ux_flow_step_t *const ux_menu_initialize [] = {
-   &ux_idle_flow_3_step,
+@@ -120,0 +119,3 @@ const ux_flow_step_t *const ux_menu_initialize [] = {
++#ifndef APP_TESTING
++  &ux_wallet_form,
++#endif
+@@ -122 +122,0 @@ const ux_flow_step_t *const ux_menu_initialize [] = {
 -  &ux_menu_init_flow_4_step,
-   &ux_idle_flow_5_step,
+@@ -352 +352 @@ void view_idle_show_impl(__Z_UNUSED uint8_t item_idx, const char *statusString)
+-        snprintf(viewdata.key, MAX_CHARS_PER_KEY_LINE, "%s", MENU_MAIN_APP_LINE2);
++        snprintf(viewdata.key, MAX_CHARS_PER_KEY_LINE, "%s", crypto_store_wallet_label());

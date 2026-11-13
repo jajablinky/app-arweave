@@ -21,6 +21,7 @@ extern "C" {
 
 #include "zxmacros.h"
 #include <stdbool.h>
+#include <stdint.h>
 #include "zxerror.h"
 
 #if defined(TARGET_NANOS)
@@ -33,20 +34,16 @@ extern "C" {
 
 bool crypto_store_is_initialized();
 bool is_sig_set();
-bool crypto_store_slot_is_initialized(uint8_t slot);
-bool same_masterseed(uint8_t slot);
-zxerr_t crypto_initialize_slot();
-zxerr_t crypto_uninitialized_slot(uint8_t slot);
 
 zxerr_t crypto_store_signature(uint8_t *sig);
 zxerr_t crypto_signature_part(uint8_t *sig, uint8_t index);
 
-zxerr_t crypto_deriveMasterSeed();
-zxerr_t crypto_init_primes();
-zxerr_t crypto_init_keys();
-
 zxerr_t crypto_store_init();
 bool crypto_store_init_test();
+uint32_t crypto_store_wallet_number(void);
+void crypto_store_use_wallet_number(uint32_t number);
+const char *crypto_store_wallet_label(void);
+void crypto_store_switch_wallet(void);
 
 cx_rsa_4096_public_key_t* crypto_store_get_pubkey();
 cx_rsa_4096_private_key_t* crypto_store_get_privkey();

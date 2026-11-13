@@ -17,9 +17,18 @@ The pinned `ledger-zxlib` dependency owns the menu implementation. After initial
 build the complete Nano S Plus loader package with:
 
 ```sh
-make current_package
+make current_package NANOSP_API26_SDK=/absolute/path/to/ledger-secure-sdk-v26.6.0
 ```
 
 The target applies the tracked `ledger-zxlib` UI patch idempotently, builds the firmware in Ledger's
-container, and emits the 295-command loader package at
-`app/output/permaweb-nanos-plus-1.1.0.apdu`.
+container, and copies the SDK-generated API 26 loader package to
+`app/output/permaweb-nanos-plus-1.1.3.apdu`.
+
+**Standard RSA-4096** is the default mode. **Wallet (switch)** opens **Legacy Arweave** so existing
+addresses remain available. Compare the address on the Ledger before reconnecting an existing wallet.
+
+For clients using numbered wallets, send `44 05 00 00 04` plus the wallet number as four big-endian
+bytes. The range is 0 through 2³¹−1. The selected number lasts for the app session and applies to
+address, owner and signing commands. Wallet 0 is selected at launch. A new wallet requires on-device
+initialization. Its number, form and address appear on the device after initialization and during
+signature review.

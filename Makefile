@@ -24,39 +24,37 @@ TESTS_JS_DIR = $(CURDIR)/js
 
 LEDGER_BUILDER_IMAGE ?= ghcr.io/ledgerhq/ledger-app-builder/ledger-app-builder-lite:latest
 LEDGER_DEV_TOOLS_IMAGE ?= ghcr.io/ledgerhq/ledger-app-builder/ledger-app-dev-tools:latest
-LEDGER_LOADER_IMAGE ?= zondax/ledger-app-builder:ledger-e1420b8a420f5f3d503ce27bbe998831e6047d6c
+NANOSP_API26_SDK ?=
 GIT_COMMON_DIR := $(shell realpath "$$(git rev-parse --git-common-dir)")
 GIT_COMMON_MOUNT := -v "$(GIT_COMMON_DIR):$(GIT_COMMON_DIR):ro"
-PERMAWEB_PACKAGE := app/output/permaweb-nanos-plus-1.1.0.apdu
+include app/Makefile.version
+PERMAWEB_PACKAGE := app/output/permaweb-nanos-plus-$(APPVERSION_M).$(APPVERSION_N).$(APPVERSION_P).apdu
 
 .DEFAULT_GOAL := current_build
 
 .PHONY: customize current_package current_build current_build_test current_build_test_nanox current_build_nanox \
 	current_ragger current_ragger_nanosp current_ragger_nanox
 customize:
-	@if git -C deps/ledger-zxlib apply --reverse --check ../../patches/permaweb-ledger-zxlib.patch >/dev/null 2>&1; then \
+	@if git -C deps/ledger-zxlib apply --unidiff-zero --reverse --check ../../patches/permaweb-ledger-zxlib.patch >/dev/null 2>&1; then \
 		echo "Permaweb Ledger UI patch is already applied"; \
-	elif git -C deps/ledger-zxlib apply --check ../../patches/permaweb-ledger-zxlib.patch >/dev/null 2>&1; then \
-		git -C deps/ledger-zxlib apply ../../patches/permaweb-ledger-zxlib.patch; \
+	elif git -C deps/ledger-zxlib apply --unidiff-zero --check ../../patches/permaweb-ledger-zxlib.patch >/dev/null 2>&1; then \
+		git -C deps/ledger-zxlib apply --unidiff-zero ../../patches/permaweb-ledger-zxlib.patch; \
 	else \
 		echo "Permaweb Ledger UI patch does not match the pinned ledger-zxlib source" >&2; \
 		exit 1; \
 	fi
 
-current_package: customize current_build
-	docker run --rm -e SDK_VARNAME=NANOSP_SDK -e TARGET=nanos2 -u $$(id -u):$$(id -g) \
-		-v "$(CURDIR):/app" $(LEDGER_LOADER_IMAGE) \
-		"python3 -m ledgerblue.loadApp --targetId 0x33100004 --apiLevel 26 \
-		--fileName /app/app/bin/app.hex --appName Permaweb --appFlags 0x000 --delete --tlv \
-		--dataSize 22016 --installparamsSize 73 --path 44'/472' --path 44'/1' \
-		--offline /app/$(PERMAWEB_PACKAGE) --offlineText"
+current_package: current_build
+	cp app/bin/app.apdu $(PERMAWEB_PACKAGE)
 	@shasum -a 256 $(PERMAWEB_PACKAGE)
 	@wc -l $(PERMAWEB_PACKAGE)
 
-current_build:
-	docker run --rm -v "$(CURDIR):/app" $(GIT_COMMON_MOUNT) -w /app $(LEDGER_BUILDER_IMAGE) \
-		bash -lc 'make -C app clean BOLOS_SDK="$$NANOSP_SDK" && \
-		make -C app -j$$(nproc) BOLOS_SDK="$$NANOSP_SDK"'
+current_build: customize
+	@test -n "$(NANOSP_API26_SDK)" || { echo "Set NANOSP_API26_SDK to Ledger secure SDK v26.6.0" >&2; exit 1; }
+	docker run --rm --platform linux/amd64 -v "$(CURDIR):/app" $(GIT_COMMON_MOUNT) \
+		-v "$(NANOSP_API26_SDK):/sdk:ro" -w /app $(LEDGER_BUILDER_IMAGE) \
+		bash -lc 'make -C app clean BOLOS_SDK=/sdk TARGET=nanos2 && \
+		make -C app -j$$(nproc) BOLOS_SDK=/sdk TARGET=nanos2'
 
 current_build_test:
 	docker run --rm -v "$(CURDIR):/app" $(GIT_COMMON_MOUNT) -w /app $(LEDGER_BUILDER_IMAGE) \

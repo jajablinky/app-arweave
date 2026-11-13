@@ -10,6 +10,11 @@ Ledger development images:
 make current_ragger
 ```
 
+Production derivation can be compared with the public test vectors in the
+[Permaweb Standard Seeds v1.0 publication](https://393082964664235.arweave.net/).
+Use the published seed only in Speculos. For the physical test, compare the legacy
+address before and after replacement without exporting the Ledger seed.
+
 Test builds preload a disposable RSA key so Speculos does not spend several
 minutes generating one during every run. Production builds do not include that
 fixture and continue to derive the key from the device seed.

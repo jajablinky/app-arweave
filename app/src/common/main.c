@@ -35,9 +35,9 @@ main(void) {
         TRY
         {
             app_init();
+            view_initialize_init(crypto_store_init);
             device_initialized = crypto_store_init_test();
             if (!device_initialized) {
-                view_initialize_init(crypto_store_init);
                 view_initialize_show(0, NULL);
             } else {
                 view_idle_show(0,NULL);

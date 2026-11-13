@@ -28,6 +28,7 @@
 #include "tx.h"
 #include "addr.h"
 #include "crypto.h"
+#include "crypto_store.h"
 #include "coin.h"
 #include "zxmacros.h"
 
@@ -37,6 +38,27 @@ static bool tx_initialized = false;
 static uint8_t tx_instruction = 0;
 
 extern bool device_initialized;
+
+void reset_signing_session(void) {
+    tx_initialized = false;
+    tx_reset();
+}
+
+static void select_wallet(uint32_t rx) {
+    if (rx != OFFSET_DATA + 4 || G_io_apdu_buffer[OFFSET_DATA_LEN] != 4) {
+        THROW(APDU_CODE_WRONG_LENGTH);
+    }
+    if (G_io_apdu_buffer[OFFSET_P1] != 0 || G_io_apdu_buffer[OFFSET_P2] != 0 ||
+        (G_io_apdu_buffer[OFFSET_DATA] & 0x80) != 0) {
+        THROW(APDU_CODE_INVALIDP1P2);
+    }
+    const uint8_t *data = G_io_apdu_buffer + OFFSET_DATA;
+    const uint32_t number = ((uint32_t)data[0] << 24) | ((uint32_t)data[1] << 16) |
+                            ((uint32_t)data[2] << 8) | data[3];
+    reset_signing_session();
+    crypto_store_use_wallet_number(number);
+    THROW(APDU_CODE_OK);
+}
 
 static bool process_chunk(volatile uint32_t *tx, uint32_t rx) {
     UNUSED(tx);
@@ -182,6 +204,31 @@ __Z_INLINE void handleGetSigPart(__Z_UNUSED volatile uint32_t *flags, volatile u
 }
 
 
+static viewfunc_getItem_t transaction_item;
+static viewfunc_getNumItems_t transaction_item_count;
+
+static zxerr_t review_item_count(uint8_t *count) {
+    CHECK_ZXERR(transaction_item_count(count));
+    *count += 2;
+    return zxerr_ok;
+}
+
+static zxerr_t review_item(int8_t index, char *key, uint16_t key_len, char *value,
+                          uint16_t value_len, uint8_t page, uint8_t *page_count) {
+    if (index < 2) {
+        return addr_getItem(index, key, key_len, value, value_len, page, page_count);
+    }
+    return transaction_item(index - 2, key, key_len, value, value_len, page, page_count);
+}
+
+static void review_signature(viewfunc_getItem_t item, viewfunc_getNumItems_t count,
+                             viewfunc_accept_t accept) {
+    transaction_item = item;
+    transaction_item_count = count;
+    view_review_init(review_item, review_item_count, accept);
+    view_review_show(REVIEW_TXN);
+}
+
 __Z_INLINE void handleSign(volatile uint32_t *flags, volatile uint32_t *tx, uint32_t rx) {
     // Wait until all chunks are processed
     if (!process_chunk(tx, rx)) {
@@ -199,8 +246,7 @@ __Z_INLINE void handleSign(volatile uint32_t *flags, volatile uint32_t *tx, uint
     }
 
     CHECK_APP_CANARY()
-    view_review_init(tx_getItem, tx_getNumItems, app_sign);
-    view_review_show(REVIEW_TXN);
+    review_signature(tx_getItem, tx_getNumItems, app_sign);
     *flags |= IO_ASYNCH_REPLY;
 }
 
@@ -216,8 +262,7 @@ __Z_INLINE void handleSignDataItem(volatile uint32_t *flags, volatile uint32_t *
     }
 
     CHECK_APP_CANARY()
-    view_review_init(dataitem_tx_getItem, dataitem_tx_getNumItems, app_sign_dataitem);
-    view_review_show(REVIEW_TXN);
+    review_signature(dataitem_tx_getItem, dataitem_tx_getNumItems, app_sign_dataitem);
     *flags |= IO_ASYNCH_REPLY;
 }
 
@@ -231,8 +276,7 @@ __Z_INLINE void handleSignHttp(volatile uint32_t *flags, volatile uint32_t *tx, 
         THROW(APDU_CODE_DATA_INVALID);
     }
     CHECK_APP_CANARY()
-    view_review_init(httpsig_tx_getItem, httpsig_tx_getNumItems, app_sign_httpsig);
-    view_review_show(REVIEW_TXN);
+    review_signature(httpsig_tx_getItem, httpsig_tx_getNumItems, app_sign_httpsig);
     *flags |= IO_ASYNCH_REPLY;
 }
 
@@ -252,13 +296,19 @@ void handleApdu(volatile uint32_t *flags, volatile uint32_t *tx, uint32_t rx) {
             }
 
             const uint8_t ins = G_io_apdu_buffer[OFFSET_INS];
-            if (!device_initialized && ins != INS_GET_VERSION) {
+            if (!device_initialized && ins != INS_GET_VERSION && ins != INS_SELECT_WALLET) {
                 THROW(APDU_CODE_TX_NOT_INITIALIZED);
             }
 
             switch (ins) {
                 case INS_GET_VERSION: {
                     handle_getversion(flags, tx, rx);
+                    break;
+                }
+
+                case INS_SELECT_WALLET: {
+                    CHECK_PIN_VALIDATED()
+                    select_wallet(rx);
                     break;
                 }
 

@@ -21,10 +21,11 @@
 #include "zxformat.h"
 #include "app_mode.h"
 #include "crypto.h"
+#include "crypto_store.h"
+#include "addr.h"
 
 zxerr_t addr_getNumItems(uint8_t *num_items) {
-    zemu_log_stack("addr_getNumItems");
-    *num_items = 1;
+    *num_items = 2;
     return zxerr_ok;
 }
 
@@ -32,13 +33,18 @@ zxerr_t addr_getItem(int8_t displayIdx,
                      char *outKey, uint16_t outKeyLen,
                      char *outVal, uint16_t outValLen,
                      uint8_t pageIdx, uint8_t *pageCount) {
-    zemu_log_stack("addr_getItem");
-    switch (displayIdx) {
-        case 0:
-            snprintf(outKey, outKeyLen, "Address");
-            pageString(outVal, outValLen, (char *) (G_io_apdu_buffer), pageIdx, pageCount);
-            return zxerr_ok;
-        default:
-            return zxerr_no_data;
+    if (displayIdx == 0) {
+        snprintf(outKey, outKeyLen, "Wallet %lu", (unsigned long)crypto_store_wallet_number());
+        pageString(outVal, outValLen, crypto_store_wallet_label(), pageIdx, pageCount);
+        return zxerr_ok;
     }
+    if (displayIdx == 1) {
+        uint8_t address[48];
+        uint16_t length;
+        CHECK_ZXERR(crypto_fillAddress(address, sizeof(address), &length));
+        snprintf(outKey, outKeyLen, "Address");
+        pageString(outVal, outValLen, (const char *)address, pageIdx, pageCount);
+        return zxerr_ok;
+    }
+    return zxerr_no_data;
 }
